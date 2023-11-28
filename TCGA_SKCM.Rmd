@@ -1,0 +1,261 @@
+---
+title: "npj Precision Oncology"
+author: Shengqin Su, ssu42@stanford.edu
+output: html_notebook
+---
+
+
+### Load required library
+```{r}
+library(readxl)
+library(survival)
+library(tidyverse)
+library(dplyr)
+library(survminer)
+library(ggplot2)
+```
+## Initial submission
+### Survival analysis of PLK1 and Numb
+```{r}
+GCdata = read_excel("TCGAdata/12-2022_PLK1NUMB_v2.xlsx")%>% # CDH1 is E-cad, CDH2 is N-cad
+  mutate(NumbNotch = paste(NUMB_Sta, NOTCH1_Sta, sep = ""), # LowHigh vs HighLow
+         NumbCDH1 = paste(NUMB_Sta, CDH1_Sta, sep = ""), # HighHigh vs LowLow
+         NumbCDH2 = paste(NUMB_Sta, CDH2_Sta, sep = ""), # LowHigh vs HighLow
+         NotchCDH1 = paste(NOTCH1_Sta, CDH1_Sta, sep = ""), # LowHigh vs HighLow
+         NotchCDH2 = paste(NOTCH1_Sta, CDH2_Sta, sep = ""), # HighHigh vs LowLow
+         PLK1Numb = paste(PLK1_Sta, NUMB_Sta, sep = ""), # LowHigh vs HighLow
+         PLK1CDH1 = paste(PLK1_Sta, CDH1_Sta, sep = ""), # HighLow vs LowHigh
+         PLK1CDH2 = paste(PLK1_Sta, CDH2_Sta, sep = ""), # HighHigh vs LowLow
+         ) 
+
+GC_OSdata = GCdata %>% filter(OS_MONTHS != "[Not Available]")
+GC_OSdata_NumbNotch = GC_OSdata %>% filter(NumbNotch %in% c("HighLow", "LowHigh"))
+GC_OSdata_NumbCDH1 = GC_OSdata %>% filter(NumbCDH1 %in% c("HighHigh", "LowLow"))
+GC_OSdata_NumbCDH2 = GC_OSdata %>% filter(NumbCDH2 %in% c("LowHigh", "HighLow"))
+GC_OSdata_NotchCDH1 = GC_OSdata %>% filter(NotchCDH1 %in% c("LowHigh", "HighLow"))
+GC_OSdata_NotchCDH2 = GC_OSdata %>% filter(NotchCDH2 %in% c("HighHigh", "LowLow"))
+GC_OSdata_PLK1Numb = GC_OSdata %>% filter(PLK1Numb %in% c("LowHigh", "HighLow"))
+GC_OSdata_PLK1CDH1 = GC_OSdata %>% filter(PLK1CDH1 %in% c("HighLow", "LowHigh"))
+GC_OSdata_PLK1CDH2 = GC_OSdata %>% filter(PLK1CDH2 %in% c("HighHigh", "LowLow"))
+
+
+GC_DFSdata = GCdata %>% filter(DFS_MONTHS != "[Not Available]")
+GC_DFSdata_NumbNotch = GC_DFSdata %>% filter(NumbNotch %in% c("HighLow", "LowHigh"))
+GC_DFSdata_NumbCDH1 = GC_DFSdata %>% filter(NumbCDH1 %in% c("HighHigh", "LowLow"))
+GC_DFSdata_NumbCDH2 = GC_DFSdata %>% filter(NumbCDH2 %in% c("LowHigh", "HighLow"))
+GC_DFSdata_NotchCDH1 = GC_DFSdata %>% filter(NotchCDH1 %in% c("LowHigh", "HighLow"))
+GC_DFSdata_NotchCDH2 = GC_DFSdata %>% filter(NotchCDH2 %in% c("HighHigh", "LowLow"))
+GC_DFSdata_PLK1Numb = GC_DFSdata %>% filter(PLK1Numb %in% c("LowHigh", "HighLow"))
+GC_DFSdata_PLK1CDH1 = GC_DFSdata %>% filter(PLK1CDH1 %in% c("HighLow", "LowHigh"))
+GC_DFSdata_PLK1CDH2 = GC_DFSdata %>% filter(PLK1CDH2 %in% c("HighHigh", "LowLow"))
+
+```
+
+```{r}
+# OS Analysis
+Total_list = list(GC_OSdata_NumbNotch, GC_OSdata_NumbCDH1, GC_OSdata_NumbCDH2, GC_OSdata_NotchCDH1, GC_OSdata_NotchCDH2, GC_OSdata_PLK1Numb, GC_OSdata_PLK1CDH1, GC_OSdata_PLK1CDH2)
+List_name = c("NumbNotch","NumbCDH1", "NumbCDH2", "NotchCDH1", "NotchCDH2", "PLK1Numb", "PLK1CDH1", "PLK1CDH2")
+#names(Total_list[[1]])
+for (i in 1:8) {
+  temp_frame = as.data.frame(Total_list[[i]])
+  temp_name = List_name[i]
+  modform <- as.formula(paste("Surv(time = as.numeric(temp_frame$OS_MONTHS),event = as.numeric(temp_frame$OS_STATUS))", List_name[i], sep = " ~ "))
+  substitute(survfit(modform, data = temp_frame), list(modform = modform))
+  funny = eval(substitute(survfit(modform, data = temp_frame), list(modform = modform)))
+  p <- ggsurvplot(funny, data = temp_frame, pval = TRUE)
+  ggsave(file = paste("OS_",List_name[i],".pdf", sep = ""), p$plot, dpi = 300)
+}
+```
+
+```{r}
+# DFS analysis
+Total_list = list(GC_DFSdata_NumbNotch, GC_DFSdata_NumbCDH1, GC_DFSdata_NumbCDH2, GC_DFSdata_NotchCDH1, GC_DFSdata_NotchCDH2, GC_DFSdata_PLK1Numb, GC_DFSdata_PLK1CDH1, GC_DFSdata_PLK1CDH2)
+List_name = c("NumbNotch","NumbCDH1", "NumbCDH2", "NotchCDH1", "NotchCDH2", "PLK1Numb", "PLK1CDH1", "PLK1CDH2")
+#names(Total_list[[1]])
+for (i in 1:7) {
+  temp_frame = as.data.frame(Total_list[[i]])
+  temp_name = List_name[i]
+  modform <- as.formula(paste("Surv(time = as.numeric(temp_frame$DFS_MONTHS),event = as.numeric(temp_frame$DFS_STATUS))", List_name[i], sep = " ~ "))
+  substitute(survfit(modform, data = temp_frame), list(modform = modform))
+  funny = eval(substitute(survfit(modform, data = temp_frame), list(modform = modform)))
+  p <- ggsurvplot(funny, data = temp_frame, pval = TRUE)
+  ggsave(file = paste("DFS_", List_name[i],".pdf", sep = ""), p$plot)
+}
+```
+
+## 020723: Major revision from reviewer.
+### Survival analysis
+Generate this: 
+1. PLK1-H/Numb-L/NOTCH-H – PLK1-L/Numb-H/NOTCH-L
+2. PLK1-H/CDH1-L/Numb-L – PLK1-L/CDH1-H/Numb-H
+3. PLK1-H/CDH2-H/Numb-L – PLK1-L/CDH2-L/Numb-H
+
+```{r}
+GCdata = read_excel("TCGAdata/12-2022_PLK1NUMB_v2.xlsx")%>% # CDH1 is E-cad, CDH2 is N-cad
+  mutate(PLK1NumbNotch = paste(PLK1_Sta, NUMB_Sta, NOTCH1_Sta, sep = ""), # LowHighLow vs HighLowHigh
+         PLK1NumbCDH1 = paste(PLK1_Sta, NUMB_Sta, CDH1_Sta, sep = ""), # LowHighHigh vs HighLowLow
+         PLK1NumbCDH2 = paste(PLK1_Sta, NUMB_Sta, CDH2_Sta, sep = ""), # HighLowHigh vs LowHighLow
+         ) # LowLow vs HighHigh
+
+GC_OSdata = GCdata %>% filter(OS_MONTHS != "[Not Available]")
+GC_OSdata_PLK1NumbNotch = GC_OSdata %>% filter(PLK1NumbNotch %in% c("LowHighLow", "HighLowHigh"))
+GC_OSdata_PLK1NumbCDH1 = GC_OSdata %>% filter(PLK1NumbCDH1 %in% c("LowHighHigh", "HighLowLow"))
+GC_OSdata_PLK1NumbCDH2 = GC_OSdata %>% filter(PLK1NumbCDH2 %in% c("HighLowHigh", "LowHighLow"))
+
+GC_DFSdata = GCdata %>% filter(DFS_MONTHS != "[Not Available]")
+GC_DFSdata_PLK1NumbNotch = GC_DFSdata %>% filter(PLK1NumbNotch %in% c("LowHighLow", "HighLowHigh"))
+GC_DFSdata_PLK1NumbCDH1 = GC_DFSdata %>% filter(PLK1NumbCDH1 %in% c("LowHighHigh", "HighLowLow"))
+GC_DFSdata_PLK1NumbCDH2 = GC_DFSdata %>% filter(PLK1NumbCDH2 %in% c("HighLowHigh", "LowHighLow"))
+
+
+
+```
+
+
+```{r}
+# OS plot
+Total_list = list(GC_OSdata_PLK1NumbNotch, GC_OSdata_PLK1NumbCDH1, GC_OSdata_PLK1NumbCDH2)
+List_name = c("PLK1NumbNotch","PLK1NumbCDH1", "PLK1NumbCDH2")
+#names(Total_list[[1]])
+for (i in 1:3) {
+  temp_frame = as.data.frame(Total_list[[i]])
+  temp_name = List_name[i]
+  modform <- as.formula(paste("Surv(time = as.numeric(temp_frame$OS_MONTHS),event = as.numeric(temp_frame$OS_STATUS))", List_name[i], sep = " ~ "))
+  substitute(survfit(modform, data = temp_frame), list(modform = modform))
+  funny = eval(substitute(survfit(modform, data = temp_frame), list(modform = modform)))
+  p <- ggsurvplot(funny, data = temp_frame, pval = TRUE)
+  ggsave(file = paste("OS_", List_name[i],".pdf", sep = ""), p$plot)
+}
+```
+
+```{r}
+# DFS plot
+Total_list = list(GC_DFSdata_PLK1NumbNotch, GC_DFSdata_PLK1NumbCDH1, GC_DFSdata_PLK1NumbCDH2)
+List_name = c("PLK1NumbNotch","PLK1NumbCDH1", "PLK1NumbCDH2")
+#names(Total_list[[1]])
+for (i in 1:3) {
+  temp_frame = as.data.frame(Total_list[[i]])
+  temp_name = List_name[i]
+  modform <- as.formula(paste("Surv(time = as.numeric(temp_frame$DFS_MONTHS),event = as.numeric(temp_frame$DFS_STATUS))", List_name[i], sep = " ~ "))
+  substitute(survfit(modform, data = temp_frame), list(modform = modform))
+  funny = eval(substitute(survfit(modform, data = temp_frame), list(modform = modform)))
+  p <- ggsurvplot(funny, data = temp_frame, pval = TRUE)
+  ggsave(file = paste("DFS_", List_name[i],".pdf", sep = ""), p$plot)
+}
+```
+
+### Boxplot for NOTCH expression
+```{r}
+GCdata = read_excel("TCGAdata/12-2022_PLK1NUMB_v2.xlsx")%>% # CDH1 is E-cad, CDH2 is N-cad
+  mutate(
+         PLK1Numb = paste(PLK1_Sta, NUMB_Sta, sep = ""),
+         ) # LowLow vs HighHigh
+
+GC_PLK1_H = GCdata %>% filter(PLK1_Sta %in% c("High")) %>% select(NOTCH1_Median, PLK1_Sta) %>% mutate(PLK1_Sta = str_replace(PLK1_Sta, "High", "PLK1_H")) %>% rename("Condition" = "PLK1_Sta")
+
+GC_PLK1_L = GCdata %>% filter(PLK1_Sta %in% c("Low")) %>% select(NOTCH1_Median, PLK1_Sta) %>% mutate(PLK1_Sta = str_replace(PLK1_Sta, "Low", "PLK1_L")) %>% rename("Condition" = "PLK1_Sta")
+
+GC_Numb_H = GCdata %>% filter(NUMB_Sta %in% c("High")) %>% select(NOTCH1_Median, NUMB_Sta) %>% mutate(NUMB_Sta = str_replace(NUMB_Sta, "High", "NUMB_H")) %>% rename("Condition" = "NUMB_Sta")
+
+GC_Numb_L = GCdata %>% filter(NUMB_Sta %in% c("Low")) %>% select(NOTCH1_Median, NUMB_Sta) %>% mutate(NUMB_Sta = str_replace(NUMB_Sta, "Low", "NUMB_L")) %>% rename("Condition" = "NUMB_Sta")
+
+GC_PLK1Numb_HL = GCdata %>% filter(PLK1Numb %in% c("HighLow")) %>% select(NOTCH1_Median, PLK1Numb) %>% mutate(PLK1Numb = str_replace(PLK1Numb, "HighLow", "PLK1Numb_HL")) %>% rename("Condition" = "PLK1Numb")
+
+GC_PLK1Numb_LH = GCdata %>% filter(PLK1Numb %in% c("LowHigh")) %>% select(NOTCH1_Median, PLK1Numb) %>% mutate(PLK1Numb = str_replace(PLK1Numb, "LowHigh", "PLK1Numb_LH")) %>% rename("Condition" = "PLK1Numb")
+
+
+```
+
+Compare Notch1 expression between PLK1_NUMB
+```{r}
+
+NOTCH1_condition = rbind(GC_PLK1Numb_HL, GC_PLK1Numb_LH)
+p2 = ggplot(NOTCH1_condition, aes(x = Condition, y = log(NOTCH1_Median), color = Condition)) + geom_boxplot() + stat_compare_means(method = "t.test")
+ggsave(file = "Notch_exp_btwn_allgroup.pdf", plot = p2, dpi = 300)
+
+
+NOTCH1_condition = rbind(GC_PLK1_H, GC_PLK1_L, GC_Numb_H, GC_Numb_L, GC_PLK1Numb_HL, GC_PLK1Numb_LH)
+p2 = ggplot(NOTCH1_condition, aes(x = Condition, y = log(NOTCH1_Median), color = Condition)) + geom_boxplot() + stat_compare_means(method = "anova")
+ggsave(file = "Notch_exp_btwn_allgroup.pdf", plot = p2, dpi = 300)
+```
+
+
+
+### Numb isoform analysis: Survival analysis on the expression of PLK1 and Numb1-4
+```{r}
+GCdata = read_excel("TCGAdata/12-2022_PLK1NUMB_v2.xlsx")%>% # CDH1 is E-cad, CDH2 is N-cad
+  mutate(NUMB4Notch = paste(NUMB4_Sta, NOTCH1_Sta, sep = ""), # LowHigh vs HighLow
+         NUMB4CDH1 = paste(NUMB4_Sta, CDH1_Sta, sep = ""), # HighHigh vs LowLow
+         NUMB4CDH2 = paste(NUMB4_Sta, CDH2_Sta, sep = ""), # LowHigh vs HighLow
+         PLK1NUMB4 = paste(PLK1_Sta, NUMB4_Sta, sep = ""), # LowHigh vs HighLow
+         ) 
+
+GC_OSdata = GCdata %>% filter(OS_MONTHS != "[Not Available]")
+GC_OSdata_NUMB4Notch = GC_OSdata %>% filter(NUMB4Notch %in% c("LowHigh", "HighLow"))
+GC_OSdata_NUMB4CDH1 = GC_OSdata %>% filter(NUMB4CDH1 %in% c("HighHigh", "LowLow"))
+GC_OSdata_NUMB4CDH2 = GC_OSdata %>% filter(NUMB4CDH2 %in% c("LowHigh", "HighLow"))
+GC_OSdata_PLK1NUMB4 = GC_OSdata %>% filter(PLK1NUMB4 %in% c("LowHigh", "HighLow"))
+
+GC_DFSdata = GCdata %>% filter(DFS_MONTHS != "[Not Available]")
+GC_DFSdata_NUMB4Notch = GC_DFSdata %>% filter(NUMB4Notch %in% c("LowHigh", "HighLow"))
+GC_DFSdata_NUMB4CDH1 = GC_DFSdata %>% filter(NUMB4CDH1 %in% c("HighHigh", "LowLow"))
+GC_DFSdata_NUMB4CDH2 = GC_DFSdata %>% filter(NUMB4CDH2 %in% c("LowHigh", "HighLow"))
+GC_DFSdata_PLK1NUMB4 = GC_DFSdata %>% filter(PLK1NUMB4 %in% c("LowHigh", "HighLow"))
+
+
+```
+
+```{r}
+# OS Plot
+Total_list = list(GC_OSdata_NUMB4Notch, GC_OSdata_NUMB4CDH1, GC_OSdata_NUMB4CDH2, GC_OSdata_PLK1NUMB4)
+#, GC_OSdata_NotchCDH2, GC_OSdata)
+List_name = c("NUMB4Notch","NUMB4CDH1", "NUMB4CDH2", "PLK1NUMB4")
+#names(Total_list[[1]])
+for (i in 1:4) {
+  temp_frame = as.data.frame(Total_list[[i]])
+  temp_name = List_name[i]
+  modform <- as.formula(paste("Surv(time = as.numeric(temp_frame$OS_MONTHS),event = as.numeric(temp_frame$OS_STATUS))", List_name[i], sep = " ~ "))
+  substitute(survfit(modform, data = temp_frame), list(modform = modform))
+  funny = eval(substitute(survfit(modform, data = temp_frame), list(modform = modform)))
+  p <- ggsurvplot(funny, data = temp_frame, pval = TRUE)
+  ggsave(file = paste("OS_", List_name[i],".pdf", sep = ""), p$plot, dpi = 300)
+}
+```
+
+```{r}
+# DFS Plot
+Total_list = list(GC_DFSdata_NUMB4Notch, GC_DFSdata_NUMB4CDH1, GC_DFSdata_NUMB4CDH2, GC_DFSdata_PLK1NUMB4)
+#, GC_DFSdata_NotchCDH2, GC_DFSdata)
+List_name = c("NUMB4Notch","NUMB4CDH1", "NUMB4CDH2", "PLK1NUMB4")
+#names(Total_list[[1]])
+for (i in 1:4) {
+  temp_frame = as.data.frame(Total_list[[i]])
+  temp_name = List_name[i]
+  modform <- as.formula(paste("Surv(time = as.numeric(temp_frame$DFS_MONTHS),event = as.numeric(temp_frame$DFS_STATUS))", List_name[i], sep = " ~ "))
+  substitute(survfit(modform, data = temp_frame), list(modform = modform))
+  funny = eval(substitute(survfit(modform, data = temp_frame), list(modform = modform)))
+  p <- ggsurvplot(funny, data = temp_frame, pval = TRUE)
+  ggsave(file = paste("DFS_", List_name[i],".pdf", sep = ""), p$plot, dpi = 300)
+}
+```
+
+
+### Numb isoform analysis: comparing Numb1-4 expression between TCGA vs GTEx
+```{r}
+Numb_iso = read_excel("TCGAdata/Numb_isoforms_TPM_TCGA.xlsx", sheet = "Sheet4")
+
+Numb1_GTEx_vs_TCGA = ggplot(Numb_iso, aes(x = Type, y = log2(`Numb-1`+1),  color = Type)) + geom_boxplot() + 
+  stat_compare_means(method = "t.test")
+Numb2_GTEx_vs_TCGA = ggplot(Numb_iso, aes(x = Type, y = log2(`Numb-2`+1),  color = Type)) + geom_boxplot() + 
+  stat_compare_means(method = "t.test")
+Numb3_GTEx_vs_TCGA = ggplot(Numb_iso, aes(x = Type, y = log2(`Numb-3`+1),  color = Type)) + geom_boxplot() + 
+  stat_compare_means(method = "t.test")
+Numb4_GTEx_vs_TCGA = ggplot(Numb_iso, aes(x = Type, y = log2(`Numb-4`+1),  color = Type)) + geom_boxplot() + 
+  stat_compare_means(method = "t.test")
+
+ggsave("Numb1_GTEx_vs_TCGA.pdf", plot = Numb1_GTEx_vs_TCGA, dpi = 300)
+ggsave("Numb2_GTEx_vs_TCGA.pdf", plot = Numb2_GTEx_vs_TCGA, dpi = 300)
+ggsave("Numb3_GTEx_vs_TCGA.pdf", plot = Numb3_GTEx_vs_TCGA, dpi = 300)
+ggsave("Numb4_GTEx_vs_TCGA.pdf", plot = Numb4_GTEx_vs_TCGA, dpi = 300)
+```
+
